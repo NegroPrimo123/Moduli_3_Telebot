@@ -1,0 +1,93 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Telegram.Bot;
+using Telegram.Bot.Polling;
+using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
+
+namespace MasterRoflaBot
+{
+    class Program
+    {
+        private static readonly TelegramBotClient Bot = new TelegramBotClient("7584764895:AAEPExdCogzCJr-b9WE4pduhscvaj50ssqU");
+        private static readonly List<string> Compliments = new List<string>
+        {
+            "Ты как Wi-Fi — всегда рядом, но иногда не подключаешься.",
+            "Твоя улыбка — это как солнечный день, но с облаками.",
+            "Ты как хороший фильм — иногда непонятен, но все равно интересен.",
+            "Ты как зарядка для телефона — всегда нужна, но иногда раздражаешь.",
+            "Ты как кофе — иногда слишком крепкий, но без тебя не обойтись."
+        };
+
+        private static readonly List<string> Jokes = new List<string>
+        {
+            "Почему программисты не любят природу? Потому что там слишком много багов.",
+            "Какой язык программирования самый оптимистичный? Java, потому что у него всегда есть исключения!",
+            "Почему у компьютера всегда холодно? Потому что он оставляет свои окна открытыми!",
+            "Что сказал один бит другому? 'Давай перейдем на байты!'",
+            "Почему код всегда голодный? Потому что он постоянно ищет 'функции'!"
+        };
+
+        static async Task Main(string[] args)
+        {
+            var cts = new CancellationTokenSource();
+            Bot.StartReceiving(HandleUpdateAsync, HandleErrorAsync, new ReceiverOptions
+            {
+                AllowedUpdates = { } // receive all update types
+            }, cancellationToken: cts.Token);
+
+            Console.WriteLine("Bot is running...");
+            Console.ReadLine(); // Prevent the application from exiting
+            cts.Cancel(); // Stop receiving updates
+        }
+
+        private static async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken cancellationToken)
+        {
+            if (update.Type == UpdateType.Message && update.Message?.Text != null)
+            {
+                var chatId = update.Message.Chat.Id;
+
+                if (update.Message.Text.ToLower() == "/start")
+                {
+                    var replyMarkup = new InlineKeyboardMarkup(new[]
+                    {
+                        new[] // Row 1
+                        {
+                            InlineKeyboardButton.WithCallbackData("Комплимент", "compliment"),
+                            InlineKeyboardButton.WithCallbackData("Шутка", "joke")
+                        }
+                    });
+
+                    await botClient.SendTextMessageAsync(chatId, "Привет! Я Мастер рофла. Выбери одну из опций:", replyMarkup: replyMarkup, cancellationToken: cancellationToken);
+                }
+            }
+            else if (update.Type == UpdateType.CallbackQuery && update.CallbackQuery != null)
+            {
+                var chatId = update.CallbackQuery.Message.Chat.Id;
+                string responseMessage = string.Empty;
+
+                switch (update.CallbackQuery.Data)
+                {
+                    case "compliment":
+                        responseMessage = Compliments[new Random().Next(Compliments.Count)];
+                        break;
+                    case "joke":
+                        responseMessage = Jokes[new Random().Next(Jokes.Count)];
+                        break;
+                }
+
+                await botClient.SendTextMessageAsync(chatId, responseMessage, cancellationToken: cancellationToken);
+                await botClient.AnswerCallbackQueryAsync(update.CallbackQuery.Id, cancellationToken: cancellationToken);
+            }
+        }
+
+        private static Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken cancellationToken)
+        {
+            Console.WriteLine($"Error occurred: {exception.Message}");
+            return Task.CompletedTask;
+        }
+    }
+}
